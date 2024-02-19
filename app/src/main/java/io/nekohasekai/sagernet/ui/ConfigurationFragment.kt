@@ -115,7 +115,12 @@ class ConfigurationFragment @JvmOverloads constructor(
     val securityAdvisory by lazy { DataStore.securityAdvisory }
 
     fun getCurrentGroupFragment(): GroupFragment? {
-        return childFragmentManager.findFragmentByTag("f" + DataStore.selectedGroup) as GroupFragment?
+        return try {
+            childFragmentManager.findFragmentByTag("f" + DataStore.selectedGroup) as GroupFragment?
+        } catch (e: Exception) {
+            Logs.e(e)
+            null
+        }
     }
 
     val updateSelectedCallback = object : ViewPager2.OnPageChangeCallback() {
@@ -1079,16 +1084,18 @@ class ConfigurationFragment @JvmOverloads constructor(
                     }
                 }
 
-                val runFunc = if (now) requireActivity()::runOnUiThread else groupPager::post
-                runFunc {
-                    groupList = newGroupList
-                    notifyDataSetChanged()
-                    if (set) groupPager.setCurrentItem(selectedGroupIndex, false)
-                    val hideTab = groupList.size < 2
-                    tabLayout.isGone = hideTab
-                    toolbar.elevation = if (hideTab) 0F else dp2px(4).toFloat()
-                    if (!select) {
-                        groupPager.registerOnPageChangeCallback(updateSelectedCallback)
+                val runFunc = if (now) activity?.let { it::runOnUiThread } else groupPager::post
+                if (runFunc != null) {
+                    runFunc {
+                        groupList = newGroupList
+                        notifyDataSetChanged()
+                        if (set) groupPager.setCurrentItem(selectedGroupIndex, false)
+                        val hideTab = groupList.size < 2
+                        tabLayout.isGone = hideTab
+                        toolbar.elevation = if (hideTab) 0F else dp2px(4).toFloat()
+                        if (!select) {
+                            groupPager.registerOnPageChangeCallback(updateSelectedCallback)
+                        }
                     }
                 }
             }
@@ -1735,7 +1742,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     val msg = Protocols.genFriendlyMsg(err)
                     profileStatus.text = if (msg != err) msg else getString(R.string.unavailable)
                     profileStatus.setOnClickListener {
-                        alert(err).show()
+                        alert(err).tryToShow()
                     }
                 } else {
                     profileStatus.setOnClickListener(null)
